@@ -49,19 +49,22 @@ class DefaultPredictor_Lazy:
             checkpointer.load(cfg.MODEL.WEIGHTS)
 
             self.aug = T.ResizeShortestEdge(
-                [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST], cfg.INPUT.MAX_SIZE_TEST
+                [cfg.INPUT.MIN_SIZE_TEST,
+                    cfg.INPUT.MIN_SIZE_TEST], cfg.INPUT.MAX_SIZE_TEST
             )
 
             self.input_format = cfg.INPUT.FORMAT
         else:  # new LazyConfig
             self.cfg = cfg
             self.model = instantiate(cfg.model)
-            test_dataset = OmegaConf.select(cfg, "dataloader.test.dataset.names", default=None)
+            test_dataset = OmegaConf.select(
+                cfg, "dataloader.test.dataset.names", default=None)
             if isinstance(test_dataset, (list, tuple)):
                 test_dataset = test_dataset[0]
 
             checkpointer = DetectionCheckpointer(self.model)
-            checkpointer.load(OmegaConf.select(cfg, "train.init_checkpoint", default=""))
+            checkpointer.load(OmegaConf.select(
+                cfg, "train.init_checkpoint", default=""))
 
             mapper = instantiate(cfg.dataloader.test.mapper)
             self.aug = mapper.augmentations
@@ -86,8 +89,22 @@ class DefaultPredictor_Lazy:
             if self.input_format == "RGB":
                 original_image = original_image[:, :, ::-1]
             height, width = original_image.shape[:2]
-            image = self.aug(T.AugInput(original_image)).apply_image(original_image)
+            image = self.aug(T.AugInput(original_image)
+                             ).apply_image(original_image)
             image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
             inputs = {"image": image, "height": height, "width": width}
             predictions = self.model([inputs])[0]
             return predictions
+
+    @torch.no_grad()
+    def batched_call(self, original_images):
+        if self.input_format == "RGB":
+            original_images = original_images[:, :, :, ::-1]
+        B, H, W, C = original_images.shape
+
+        # TODO: Was machen die hier?
+        image = self.aug(T.AugInput(original_images)).apply_image(original_images)
+        image = torch.as_tensor(image.astype("float32").transpose(0, 3, 1, 2))
+
+        inputs = [{"image": img, "height": H, "width": W} for img in image]
+        predictions = self.model(inputs)[0]

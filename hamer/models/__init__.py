@@ -12,9 +12,9 @@ def download_models(folder=CACHE_DIR_HAMER):
     import os
     os.makedirs(folder, exist_ok=True)
     download_files = {
-        "hamer_demo_data.tar.gz"      : ["https://www.cs.utexas.edu/~pavlakos/hamer/data/hamer_demo_data.tar.gz", folder],
+        "hamer_demo_data.tar.gz": ["https://www.cs.utexas.edu/~pavlakos/hamer/data/hamer_demo_data.tar.gz", folder],
     }
-    
+
     for file_name, url in download_files.items():
         output_path = os.path.join(url[1], file_name)
         if not os.path.exists(output_path):
@@ -28,8 +28,11 @@ def download_models(folder=CACHE_DIR_HAMER):
                 print("Extracting file: " + file_name)
                 os.system("tar -xvf " + output_path)
 
-DEFAULT_CHECKPOINT=f'{CACHE_DIR_HAMER}/hamer_ckpts/checkpoints/hamer.ckpt'
-def load_hamer(checkpoint_path=DEFAULT_CHECKPOINT):
+
+DEFAULT_CHECKPOINT = f'{CACHE_DIR_HAMER}/hamer_ckpts/checkpoints/hamer.ckpt'
+
+
+def load_hamer(checkpoint_path=DEFAULT_CHECKPOINT) -> HAMER:
     from pathlib import Path
     from ..configs import get_config
     model_cfg = str(Path(checkpoint_path).parent.parent / 'model_config.yaml')
@@ -39,7 +42,7 @@ def load_hamer(checkpoint_path=DEFAULT_CHECKPOINT):
     if (model_cfg.MODEL.BACKBONE.TYPE == 'vit') and ('BBOX_SHAPE' not in model_cfg.MODEL):
         model_cfg.defrost()
         assert model_cfg.MODEL.IMAGE_SIZE == 256, f"MODEL.IMAGE_SIZE ({model_cfg.MODEL.IMAGE_SIZE}) should be 256 for ViT backbone"
-        model_cfg.MODEL.BBOX_SHAPE = [192,256]
+        model_cfg.MODEL.BBOX_SHAPE = [192, 256]
         model_cfg.freeze()
 
     # Update config to be compatible with demo
@@ -48,5 +51,6 @@ def load_hamer(checkpoint_path=DEFAULT_CHECKPOINT):
         model_cfg.MODEL.BACKBONE.pop('PRETRAINED_WEIGHTS')
         model_cfg.freeze()
 
-    model = HAMER.load_from_checkpoint(checkpoint_path, strict=False, cfg=model_cfg)
+    model = HAMER.load_from_checkpoint(
+        checkpoint_path, strict=False, cfg=model_cfg)
     return model, model_cfg
